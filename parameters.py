@@ -41,6 +41,6 @@ np.fill_diagonal(lambda_itinerary_matrix, 0)
 station_size_list = np.array([24,  20,  20,  15,  20])
 
 number_of_stations = 5
-number_of_bikes = 60
+number_of_bikes = 80
 initial_time = 0.0
 T_max = 150*60
