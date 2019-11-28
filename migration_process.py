@@ -5,35 +5,62 @@ from copy import *
 from enum import Enum
 from transition import *
 
+def init_state_matrix(station_size_list, number_of_bikes, size):
+	state_matrix = np.zeros((size,size))
+
+	coord_list = [[i,j] for i in range(5) for j in range(5)]
+	while number_of_bikes > 0:
+		rand_index = choice(coord_list)
+		i = rand_index[0]
+		j = rand_index[1]
+		if (i==j and state_matrix[i][j] >= station_size_list[i]):
+			coord_list.remove(rand_index)
+		else:
+			state_matrix[i][j] +=1
+			number_of_bikes -=1
+
+	return state_matrix
+
+def compute_conf_interval(data,n):
+	beta = 1.96
+	sigma = np.std(data,axis=0)
+	sqrt_n = sqrt(n)
+
+	return (1/sqrt_n)*(beta*sigma)
+
+def compute_mean(data):
+	m = np.mean(data,axis=0)
+	return m
 
 class MigrationProcess:
-	def __init__(self,size,number_of_bikes,time,lambda_station_matrix,lambda_itinerary_matrix,routing_matrix,station_size_list):
+	def __init__(self,size,number_of_bikes,time,lambda_station_matrix,lambda_station_list,lambda_itinerary_matrix,routing_matrix,station_size_list):
 
 		self.number_of_stations = size
 		self.number_of_bikes = number_of_bikes
 		self.time = time
 		self.lambda_station_matrix = deepcopy(lambda_station_matrix)
+		self.lambda_station_list = deepcopy(lambda_station_list)
 		self.lambda_itinerary_matrix = deepcopy(lambda_itinerary_matrix)
 		self.routing_matrix = deepcopy(routing_matrix)
 		self.station_size_list = deepcopy(station_size_list)
-		self.state_matrix = np.zeros((size,size))
+		self.state_matrix = init_state_matrix(station_size_list, number_of_bikes, size)
 		self.empty_station_time = np.zeros(size)
 
 	def print_process(self):
-		print("number of stations : "+str(self.number_of_stations))
-		print("number_of_bikes : "+str(self.number_of_bikes))
-		print("time : "+str(self.time))
-		print("lambda station list : ")
-		print(self.lambda_station_matrix)
-		print("lambda itinerary matrix : ")
+		print("Nombre de stations : "+str(self.number_of_stations))
+		print("Nombre de vélos dans le réseau : "+str(self.number_of_bikes))
+		print("Temps initial : "+str(self.time))
+		print("Intensité des occurences de demande de vélos à la station i (1/min) : ")
+		print(self.lambda_station_list)
+		print("Intensité des trajets en vélo de la station i à la station j (1/min) : ")
 		print(self.lambda_itinerary_matrix)
-		print("routing matrix : ")
+		print("Matrice de routage : ")
 		print(self.routing_matrix)
-		print("station size list : ")
+		print("Nombre de places par station : ")
 		print(self.station_size_list)
-		print("state matrix : ")
+		print("État courant (nombre de vélos par colonie), généré aléatoirement à l'initialisation: ")
 		print(self.state_matrix)
-		print("empty time per station : ")
+		print("Temps durant lequel chaque station est vide (nul au démarrage ...) : ")
 		print(self.empty_station_time)
 
 	def get_number_of_stations(self):
@@ -81,19 +108,6 @@ class MigrationProcess:
 			self.itinerary_to_station(i, j)
 		else:
 			self.itinerary_to_itinerary(i, j, k)
-
-	def init_state_matrix(self):
-		number_of_bikes = self.number_of_bikes
-		coord_list = [[i,j] for i in range(5) for j in range(5)]
-		while number_of_bikes > 0:
-			rand_index = choice(coord_list)
-			i = rand_index[0]
-			j = rand_index[1]
-			if (i==j and self.state_matrix[i][j] == self.station_size_list[i]):
-				coord_list.remove(rand_index)
-			else:
-				self.state_matrix[i][j]+=1
-				number_of_bikes -=1
 
 	def exponential_distribution(self,lambda_param):
 		return np.random.exponential(1/lambda_param)
@@ -181,19 +195,36 @@ class MigrationProcess:
 			if (self.state_matrix[i][i] == 0):
 				self.empty_station_time[i] += empty_time
 
+	def print_progress(self,current,total):
+		b = "Progress : " + str(int((current/total)*100)) + " %"
+		print (b, end="\r")
 
 	def estimate_time(N_simulations,T_max,process,size):
 		k=0
-		current_empty_time = np.zeros(size)
+		temporal_emptiness = np.zeros((N_simulations,size))
+		spatial_emptiness = np.zeros((N_simulations,size))
+
 		while (k<N_simulations):
 			process_copy = deepcopy(process)
 			process_copy.simulate_Markov_process(T_max)
-			current_empty_time+=process_copy.empty_station_time
-			# process_copy.print_process()
-			print(k)
+
+			temporal_emptiness[k]=process_copy.empty_station_time
+			spatial_emptiness[k]=np.diag(process_copy.state_matrix)==0
+
+			process_copy.print_progress(k,N_simulations)
 			k+=1
-		current_empty_time /= (T_max*N_simulations)
-		print(current_empty_time)
+
+		temporal_emptiness /= (T_max)
+
+		res1=compute_mean(temporal_emptiness)
+		int1=compute_conf_interval(temporal_emptiness,N_simulations)
+		res2=compute_mean(spatial_emptiness)
+		int2=compute_conf_interval(spatial_emptiness,N_simulations)
+
+		print("%15s %15s %15s %15s %15s" % ("stations","Méthode 1","Écart 1","Méthode 2","Écart 2"))
+
+		for i in range(0,5):
+			print("%15f %15f %15f %15f %15f" % (i+1,res1[i],int1[i],res2[i],int2[i]))
 
 
 	def simulate_Markov_process(self,T_max):
@@ -240,12 +271,59 @@ class MigrationProcess:
 		## GENERATE INITIAL STATE ##
 		############################
 
-		# self.init_state_matrix()
-		self.state_matrix = np.array(
-		    [   [20  ,1  ,0  ,0  ,0],
-			    [1  ,16  ,1  ,0  ,0],
-			    [0  ,1  ,17  ,1  ,0],
-			    [0  ,0  ,1  ,13  ,1],
-			    [0  ,0  ,0  ,1  ,18]])
+		print(self.state_matrix)
 
 		self.simulate_Markov_process(T_max)
+		self.print_process()
+
+	def coeff_replace(self, j):
+		size = self.number_of_stations
+		lsl = self.lambda_station_list
+		lim = self.lambda_itinerary_matrix
+		rm = self.routing_matrix
+		c=1
+
+		for i in range(0,size):
+			if(i!=j):
+				c += lsl[j]*rm[j][i]/lim[j][i]
+		return c
+
+
+	def compute_alpha(self):
+		size = self.number_of_stations
+		lsl = self.lambda_station_list
+		lim = self.lambda_itinerary_matrix
+		rm = self.routing_matrix
+		P = np.zeros((size,size))
+		alpha_itinerary = np.zeros((size,size))
+		I = np.eye(size)
+		first_line = np.ones(size)
+		b = np.zeros((size,1))
+		b[0] = 1
+		for k in range(0,size):
+			first_line[k] = self.coeff_replace(k)
+		# print(first_line)
+
+		for i in range(0,size):
+			for j in range(0,size):
+				P[i][j] = (lsl[j] * rm[j][i])/lsl[i]
+
+		P_moins_I = P - I
+		P_moins_I[0,:] = first_line
+
+		P_moins_I_inv = np.linalg.inv(P_moins_I)
+
+		alpha_station = np.dot(P_moins_I_inv,b)
+		# print(sum(alpha_station))
+		# print(alpha_station)
+
+		for i in range(0,size):
+			for j in range(0,size):
+				if i!=j:
+					alpha_itinerary[i][j] =  alpha_station[i]*lsl[i]*rm[i][j]/lim[i][j]
+
+		# print(alpha_itinerary)
+		# print("sum : ",alpha_station.sum()+alpha_itinerary.sum())
+		un = np.ones((size,1))
+		P_empty = un - alpha_station/(alpha_station.sum()+alpha_itinerary.sum())
+		return P_empty
