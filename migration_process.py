@@ -1,9 +1,11 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from math import *
 from random import *
 from copy import *
 from enum import Enum
 from transition import *
+from parameters import *
 
 def init_state_matrix(station_size_list, number_of_bikes, size):
 	state_matrix = np.zeros((size,size))
@@ -199,8 +201,9 @@ class MigrationProcess:
 		b = "Progress : " + str(int((current/total)*100)) + " %"
 		print (b, end="\r")
 
-	def estimate_time(N_simulations,T_max,process,size):
+	def estimate_time(N_simulations,T_max,process,theory,print_debug):
 		k=0
+		size = process.number_of_stations
 		temporal_emptiness = np.zeros((N_simulations,size))
 		spatial_emptiness = np.zeros((N_simulations,size))
 
@@ -211,7 +214,8 @@ class MigrationProcess:
 			temporal_emptiness[k]=process_copy.empty_station_time
 			spatial_emptiness[k]=np.diag(process_copy.state_matrix)==0
 
-			process_copy.print_progress(k,N_simulations)
+			if print_debug:
+				process_copy.print_progress(k,N_simulations)
 			k+=1
 
 		temporal_emptiness /= (T_max)
@@ -221,10 +225,37 @@ class MigrationProcess:
 		res2=compute_mean(spatial_emptiness)
 		int2=compute_conf_interval(spatial_emptiness,N_simulations)
 
-		print("%15s %15s %15s %15s %15s" % ("stations","Méthode 1","Écart 1","Méthode 2","Écart 2"))
+		if print_debug:
+			if theory is None:
+				print("%15s %15s %15s %15s %15s" % ("Stations","P Empirique M1","IC 95% M1","P Empirique M2","IC 95% M2"))
 
-		for i in range(0,5):
-			print("%15f %15f %15f %15f %15f" % (i+1,res1[i],int1[i],res2[i],int2[i]))
+				for i in range(0,5):
+					print("%15d %15f [-%7f;+%7f] %7f [-%7f;+%7f]" % (i+1,res1[i],int1[i],int1[i],res2[i],int2[i],int2[i]))
+			else:
+				print("%15s %15s %15s %15s %15s %15s" % ("Stations","P Théorique","P Empirique M1","IC 95% M1","P Empirique M2","IC 95% M2"))
+
+				for i in range(0,5):
+					print("%15d %15f %15f [-%7f;+%7f] %7f [-%7f;+%7f]" % (i+1,theory[i],res1[i],int1[i],int1[i],res2[i],int2[i],int2[i]))
+
+				barWidth = 0.2
+				y1 = theory.transpose()[0]
+				y2 = res1.transpose()
+				y3 = res2.transpose()
+
+				r1 = range(0,len(theory))
+				r2 = [x + barWidth for x in r1]
+				r3 = [x + barWidth*2 for x in r1]
+
+				plt.bar(r1, y1, width = barWidth, color = ['#332288' for i in y1], label = 'Théorique')
+				plt.bar(r2, y2, width = barWidth, color = ['#44AA99' for i in y2], label = 'Empirique M1', yerr = int1, ecolor = 'magenta')
+				plt.bar(r3, y3, width = barWidth, color = ['#999933' for i in y3], label = 'Empirique M2', yerr = int2, ecolor = 'magenta')
+				plt.xticks([r + barWidth*3 / 2 for r in range(len(y1))], [r for r in range(1, len(y1)+1)])
+				plt.ylabel("Pourcentage du temps qu'une station est vide sur 150 heures")
+				plt.xlabel("Numéro de la station")
+				plt.legend()
+
+		return res1, int1
+
 
 
 	def simulate_Markov_process(self,T_max):
@@ -289,7 +320,7 @@ class MigrationProcess:
 		return c
 
 
-	def compute_alpha(self):
+	def compute_theorical_proba_emptiness(self):
 		size = self.number_of_stations
 		lsl = self.lambda_station_list
 		lim = self.lambda_itinerary_matrix
@@ -327,3 +358,108 @@ class MigrationProcess:
 		un = np.ones((size,1))
 		P_empty = un - alpha_station/(alpha_station.sum()+alpha_itinerary.sum())
 		return P_empty
+
+
+	def bike_number_impact(N_bikes):
+		number_of_stations = 5
+		bike_number_impact_matrix = np.zeros((N_bikes+1,number_of_stations))
+		bike_number_conf_matrix = np.zeros((N_bikes+1,number_of_stations))
+
+		for i in range(1,N_bikes+1):
+			process = MigrationProcess(number_of_stations,
+                           i,
+                           initial_time,
+                           lambda_station_matrix,
+                           lambda_station_list_per_mins,
+                           lambda_itinerary_matrix,
+                           routing_matrix,
+                           station_size_list)
+			process.print_progress(i,N_bikes)
+
+			res = MigrationProcess.estimate_time(1,T_max,process,None,False)
+			bike_number_impact_matrix[i] = res[0]
+
+		barWidth = 0.1
+		y1 = bike_number_impact_matrix[:,0]
+		y2 = bike_number_impact_matrix[:,1]
+		y3 = bike_number_impact_matrix[:,2]
+		y4 = bike_number_impact_matrix[:,3]
+		y5 = bike_number_impact_matrix[:,4]
+
+		r1 = range(0,len(y1))
+		r2 = [x + barWidth for x in r1]
+		r3 = [x + barWidth*2 for x in r1]
+		r4 = [x + barWidth*3 for x in r1]
+		r5 = [x + barWidth*4 for x in r1]
+
+		plt.figure(figsize=(20,5))
+		plt.bar(r1, y1, width = barWidth, color = ['#332288' for i in y1], label = 'station 1')
+		plt.bar(r2, y2, width = barWidth, color = ['#44AA99' for i in y2], label = 'station 2')
+		plt.bar(r3, y3, width = barWidth, color = ['#999933' for i in y3], label = 'station 3')
+		plt.bar(r4, y4, width = barWidth, color = ['#CC6677' for i in y4], label = 'station 4')
+		plt.bar(r5, y4, width = barWidth, color = ['#AA4499' for i in y5], label = 'station 5')
+		plt.xticks([r + barWidth*4 / 2 for r in range(len(y1))], [r for r in range(len(y1))])
+		plt.ylabel("Pourcentage du temps qu'une station est vide sur 150 heures")
+		plt.xlabel("Nombres total de vélos")
+		plt.legend()
+
+		# bins = [x + 0.5 for x in range(0, 6)]
+		# plt.hist(bike_number_impact_matrix, bins = bins, color = ['yellow', 'green', 'yellow', 'green', 'black'],
+		#             edgecolor = 'red', hatch = '/', label = ['x1', 'x2', 'x3', 'x4', 'x5'],
+		#             histtype = 'bar') # bar est le defaut
+		# plt.ylabel('valeurs')
+		# plt.xlabel('nombres')
+		# plt.title('2 series')
+		# plt.legend()
+		#
+
+	def process_duration_impact(time_limit):
+		number_of_stations = 5
+		bike_number_impact_matrix = np.zeros((time_limit+1,number_of_stations))
+		bike_number_conf_matrix = np.zeros((time_limit+1,number_of_stations))
+
+		for i in range(1,time_limit+1,1):
+			T_max = i*60
+			process = MigrationProcess(number_of_stations,
+                           1,
+                           initial_time,
+                           lambda_station_matrix,
+                           lambda_station_list_per_mins,
+                           lambda_itinerary_matrix,
+                           routing_matrix,
+                           station_size_list)
+			process.print_progress(i,time_limit+1)
+
+			res = MigrationProcess.estimate_time(100,T_max,process,None,False)
+			bike_number_impact_matrix[i] = res[0]
+			bike_number_conf_matrix[i] = res[1]
+
+		barWidth = 0.1
+		y1 = bike_number_impact_matrix[:,0]
+		y2 = bike_number_impact_matrix[:,1]
+		y3 = bike_number_impact_matrix[:,2]
+		y4 = bike_number_impact_matrix[:,3]
+		y5 = bike_number_impact_matrix[:,4]
+
+		conf1 = bike_number_conf_matrix[:,0]
+		conf2 = bike_number_conf_matrix[:,1]
+		conf3 = bike_number_conf_matrix[:,2]
+		conf4 = bike_number_conf_matrix[:,3]
+		conf5 = bike_number_conf_matrix[:,4]
+
+		r1 = range(0,len(y1))
+		r2 = [x + barWidth for x in r1]
+		r3 = [x + barWidth*2 for x in r1]
+		r4 = [x + barWidth*3 for x in r1]
+		r5 = [x + barWidth*4 for x in r1]
+
+		plt.figure(figsize=(20,5))
+		plt.bar(r1, y1, width = barWidth, color = ['#332288' for i in y1], label = 'station 1', yerr = conf1, ecolor = 'magenta')
+		plt.bar(r2, y2, width = barWidth, color = ['#44AA99' for i in y2], label = 'station 2', yerr = conf2, ecolor = 'magenta')
+		plt.bar(r3, y3, width = barWidth, color = ['#999933' for i in y3], label = 'station 3', yerr = conf3, ecolor = 'magenta')
+		plt.bar(r4, y4, width = barWidth, color = ['#CC6677' for i in y4], label = 'station 4', yerr = conf4, ecolor = 'magenta')
+		plt.bar(r5, y4, width = barWidth, color = ['#AA4499' for i in y5], label = 'station 5', yerr = conf5, ecolor = 'magenta')
+		plt.xticks([r + barWidth*4 / 2 for r in range(len(y1))], [r for r in range(len(y1))])
+		plt.ylabel("Pourcentage du temps qu'une station est vide sur 150 heures")
+		plt.xlabel("Durée du processus (en heures)")
+		plt.legend()
