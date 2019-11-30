@@ -7,7 +7,15 @@ from enum import Enum
 from transition import *
 from parameters import *
 
+"""
+    This file stores all the useful functions to simulate the process.
+"""
+
 def init_state_matrix(station_size_list, number_of_bikes, size):
+	"""
+		This function generates randomly an initial state for our process.
+	"""
+
 	state_matrix = np.zeros((size,size))
 
 	coord_list = [[i,j] for i in range(5) for j in range(5)]
@@ -24,6 +32,11 @@ def init_state_matrix(station_size_list, number_of_bikes, size):
 	return state_matrix
 
 def compute_conf_interval(data,n):
+	"""
+		This function computes a 95% confidence interval giving some data and
+		a number of experiences.
+	"""
+
 	beta = 1.96
 	sigma = np.std(data,axis=0)
 	sqrt_n = sqrt(n)
@@ -31,10 +44,18 @@ def compute_conf_interval(data,n):
 	return (1/sqrt_n)*(beta*sigma)
 
 def compute_mean(data):
+	"""
+		This function computes the mean of an array of data.
+	"""
+
 	m = np.mean(data,axis=0)
 	return m
 
 class MigrationProcess:
+	"""
+		This class is used to describe the Process object.
+	"""
+
 	def __init__(self,size,number_of_bikes,time,lambda_station_matrix,lambda_station_list,lambda_itinerary_matrix,routing_matrix,station_size_list):
 
 		self.number_of_stations = size
@@ -49,6 +70,10 @@ class MigrationProcess:
 		self.empty_station_time = np.zeros(size)
 
 	def print_process(self):
+		"""
+			This function prints a MigrationProcess object.
+		"""
+
 		print("Nombre de stations : "+str(self.number_of_stations))
 		print("Nombre de vélos dans le réseau : "+str(self.number_of_bikes))
 		print("Temps initial : "+str(self.time))
@@ -65,40 +90,36 @@ class MigrationProcess:
 		print("Temps durant lequel chaque station est vide (nul au démarrage ...) : ")
 		print(self.empty_station_time)
 
-	def get_number_of_stations(self):
-		return self.number_of_stations
-
-	def get_lambda_station_matrix(self):
-		return self.lambda_station_matrix
-
-	def get_lambda_itinerary_matrix(self):
-		return self.lambda_itinerary_matrix
-
-	def get_routing_matrix(self):
-		return self.routing_matrix
-
-	def get_station_size_list(self):
-		return self.station_size_list
-
-	def get_state_matrix(self):
-		return self.state_matrix
-
-	def get_number_of_bikes(self):
-		return self.number_of_bikes
-
 	def station_to_itinerary(self, i, j):
-	    self.state_matrix[i][i] -= 1
-	    self.state_matrix[i][j] += 1
+		"""
+			This function computes a station to itinerary transition.
+		"""
+
+		self.state_matrix[i][i] -= 1
+		self.state_matrix[i][j] += 1
 
 	def itinerary_to_station(self, i, j):
-	    self.state_matrix[i][j] -= 1
-	    self.state_matrix[j][j] += 1
+		"""
+			This function computes an itinerary to station transition.
+		"""
+
+		self.state_matrix[i][j] -= 1
+		self.state_matrix[j][j] += 1
 
 	def itinerary_to_itinerary(self, i, j, k):
+		"""
+			This function computes an itinerary to itinerary transition.
+		"""
+
 		self.state_matrix[i][j] -= 1
 		self.state_matrix[j][k] += 1
 
 	def compute_next_state(self, transition):
+		"""
+			This function computes the next state according to the type of
+			transition.
+		"""
+
 		t_type = transition.t_type
 		i = transition.t_i
 		j = transition.t_j
@@ -112,9 +133,17 @@ class MigrationProcess:
 			self.itinerary_to_itinerary(i, j, k)
 
 	def exponential_distribution(self,lambda_param):
+		"""
+			This function simulates an exponential distribution.
+		"""
+
 		return np.random.exponential(1/lambda_param)
 
 	def print_rate_matrix(self,rm):
+		"""
+			This function prints the rate matrix.
+		"""
+
 		size = self.number_of_stations
 		for i in range(size):
 			for j in range(size):
@@ -122,6 +151,10 @@ class MigrationProcess:
 			print('\n')
 
 	def sta_it_rate(self):
+		"""
+			This function computes the station to itinerary transition rates.
+		"""
+
 		size = self.number_of_stations
 		m = self.state_matrix
 		lsm = self.lambda_station_matrix
@@ -138,6 +171,11 @@ class MigrationProcess:
 		return sta_it_rate_array
 
 	def it_sta_rate(self):
+		"""
+			This function computes the itinerary to station (or itinerary)
+			transition rates.
+		"""
+
 		size = self.number_of_stations
 		m = self.state_matrix
 		lim = self.lambda_itinerary_matrix
@@ -166,6 +204,10 @@ class MigrationProcess:
 		return it_sta_rate_array
 
 	def compute_transition_rate(self):
+		"""
+			This function computes the transition rates.
+		"""
+
 		size = self.number_of_stations
 
 		sta_it_tr_matrix = np.reshape(self.sta_it_rate(),size*size)
@@ -176,21 +218,38 @@ class MigrationProcess:
 		return t_rates
 
 	def sum_t_rates(self,t_rates):
+		"""
+			This function computes the sum of transition rates (q(x,x)).
+		"""
+
 		size = self.number_of_stations
 		t_rates_sum = sum(o.t_rate for o in t_rates)
 
 		return t_rates_sum
 
 	def compute_weight(self,t_rates,t_rates_sum):
+		"""
+			This function computes the weight of the transitions.
+		"""
+
 		size = self.number_of_stations
 		weight_list = np.array([o.t_rate/t_rates_sum for o in t_rates])
 		return weight_list
 
 	def select_random_transition(self,weight,t_rates):
+		"""
+			This function selects a transition randomly according to their
+			weight.
+		"""
+
 		random_transition_selected = np.random.choice(t_rates, p=weight)
 		return random_transition_selected
 
 	def compute_empty_station_time(self, empty_time):
+		"""
+			This function computes the time each station spend empty.
+		"""
+
 		size = self.number_of_stations
 
 		for i in range(size):
@@ -198,10 +257,19 @@ class MigrationProcess:
 				self.empty_station_time[i] += empty_time
 
 	def print_progress(self,current,total):
+		"""
+			This function prints the progress of an operation.
+		"""
+
 		b = "Progress : " + str(int((current/total)*100)) + " %"
 		print (b, end="\r")
 
 	def estimate_time(N_simulations,T_max,process,theory,print_debug):
+		"""
+			This function prints the some results about the time each station
+			spend empty.
+		"""
+
 		k=0
 		size = process.number_of_stations
 		temporal_emptiness = np.zeros((N_simulations,size))
@@ -259,10 +327,13 @@ class MigrationProcess:
 
 
 	def simulate_Markov_process(self,T_max):
+		"""
+			This function simulates our Markov process of Velib.
+		"""
 
 		T_current = 0.0
 
-		# while we still have time, we continue to run the process
+		# while we still have time, we continue to run the process.
 		while (T_current < T_max):
 
 			###############################################################
@@ -282,13 +353,8 @@ class MigrationProcess:
 			##########################################
 
 				weight = self.compute_weight(t_rates,t_rates_sum)
-				# print([str(o.t_i)+","+str(o.t_j) for o in t_rates])
-				# print(weight)
 				transition = self.select_random_transition(weight,t_rates)
-				# transition.print_transition()
-				# print(self.state_matrix)
 				self.compute_next_state(transition)
-				# print(self.state_matrix)
 
 			#########################################
 			## THIRD STEP : we incremente the time ##
@@ -297,6 +363,9 @@ class MigrationProcess:
 			T_current+=T_i
 
 	def run_Markov_process(self, T_max):
+		"""
+			This function runs our Markov process of Velib.
+		"""
 
 		############################
 		## GENERATE INITIAL STATE ##
@@ -308,6 +377,11 @@ class MigrationProcess:
 		self.print_process()
 
 	def coeff_replace(self, j):
+		"""
+			This function computes some coefficient to add to our theorical
+			model.
+		"""
+
 		size = self.number_of_stations
 		lsl = self.lambda_station_list
 		lim = self.lambda_itinerary_matrix
@@ -321,6 +395,10 @@ class MigrationProcess:
 
 
 	def compute_theorical_proba_emptiness(self):
+		"""
+			This function computes the theorical probability of emptiness.
+		"""
+
 		size = self.number_of_stations
 		lsl = self.lambda_station_list
 		lim = self.lambda_itinerary_matrix
@@ -333,7 +411,6 @@ class MigrationProcess:
 		b[0] = 1
 		for k in range(0,size):
 			first_line[k] = self.coeff_replace(k)
-		# print(first_line)
 
 		for i in range(0,size):
 			for j in range(0,size):
@@ -345,22 +422,23 @@ class MigrationProcess:
 		P_moins_I_inv = np.linalg.inv(P_moins_I)
 
 		alpha_station = np.dot(P_moins_I_inv,b)
-		# print(sum(alpha_station))
-		# print(alpha_station)
 
 		for i in range(0,size):
 			for j in range(0,size):
 				if i!=j:
 					alpha_itinerary[i][j] =  alpha_station[i]*lsl[i]*rm[i][j]/lim[i][j]
 
-		# print(alpha_itinerary)
-		# print("sum : ",alpha_station.sum()+alpha_itinerary.sum())
 		un = np.ones((size,1))
 		P_empty = un - alpha_station/(alpha_station.sum()+alpha_itinerary.sum())
 		return P_empty
 
 
 	def bike_number_impact(N_bikes):
+		"""
+			This function shows the impact of bikes number on stationary
+			probability.
+		"""
+
 		number_of_stations = 5
 		bike_number_impact_matrix = np.zeros((N_bikes+1,number_of_stations))
 		bike_number_conf_matrix = np.zeros((N_bikes+1,number_of_stations))
@@ -404,6 +482,11 @@ class MigrationProcess:
 		plt.legend()
 
 	def process_duration_impact(time_limit,theory):
+		"""
+			This function shows the impact of duration number on stationary
+			probability.
+		"""
+
 		number_of_stations = 5
 		bike_number_impact_matrix = np.zeros((time_limit+1,number_of_stations))
 		bike_number_conf_matrix = np.zeros((time_limit+1,number_of_stations))
@@ -420,7 +503,7 @@ class MigrationProcess:
                            station_size_list)
 			process.print_progress(i,time_limit+1)
 
-			res = MigrationProcess.estimate_time(1000,T_max,process,None,False)
+			res = MigrationProcess.estimate_time(100,T_max,process,None,False)
 			bike_number_impact_matrix[i] = abs(res[0] - theory.reshape(1,5)[0])
 
 		barWidth = 0.1
