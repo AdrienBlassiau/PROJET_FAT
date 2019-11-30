@@ -403,17 +403,7 @@ class MigrationProcess:
 		plt.xlabel("Nombres total de vélos")
 		plt.legend()
 
-		# bins = [x + 0.5 for x in range(0, 6)]
-		# plt.hist(bike_number_impact_matrix, bins = bins, color = ['yellow', 'green', 'yellow', 'green', 'black'],
-		#             edgecolor = 'red', hatch = '/', label = ['x1', 'x2', 'x3', 'x4', 'x5'],
-		#             histtype = 'bar') # bar est le defaut
-		# plt.ylabel('valeurs')
-		# plt.xlabel('nombres')
-		# plt.title('2 series')
-		# plt.legend()
-		#
-
-	def process_duration_impact(time_limit):
+	def process_duration_impact(time_limit,theory):
 		number_of_stations = 5
 		bike_number_impact_matrix = np.zeros((time_limit+1,number_of_stations))
 		bike_number_conf_matrix = np.zeros((time_limit+1,number_of_stations))
@@ -430,22 +420,16 @@ class MigrationProcess:
                            station_size_list)
 			process.print_progress(i,time_limit+1)
 
-			res = MigrationProcess.estimate_time(100,T_max,process,None,False)
-			bike_number_impact_matrix[i] = res[0]
-			bike_number_conf_matrix[i] = res[1]
+			res = MigrationProcess.estimate_time(1000,T_max,process,None,False)
+			bike_number_impact_matrix[i] = abs(res[0] - theory.reshape(1,5)[0])
 
 		barWidth = 0.1
+
 		y1 = bike_number_impact_matrix[:,0]
 		y2 = bike_number_impact_matrix[:,1]
 		y3 = bike_number_impact_matrix[:,2]
 		y4 = bike_number_impact_matrix[:,3]
 		y5 = bike_number_impact_matrix[:,4]
-
-		conf1 = bike_number_conf_matrix[:,0]
-		conf2 = bike_number_conf_matrix[:,1]
-		conf3 = bike_number_conf_matrix[:,2]
-		conf4 = bike_number_conf_matrix[:,3]
-		conf5 = bike_number_conf_matrix[:,4]
 
 		r1 = range(0,len(y1))
 		r2 = [x + barWidth for x in r1]
@@ -454,11 +438,11 @@ class MigrationProcess:
 		r5 = [x + barWidth*4 for x in r1]
 
 		plt.figure(figsize=(20,5))
-		plt.bar(r1, y1, width = barWidth, color = ['#332288' for i in y1], label = 'station 1', yerr = conf1, ecolor = 'magenta')
-		plt.bar(r2, y2, width = barWidth, color = ['#44AA99' for i in y2], label = 'station 2', yerr = conf2, ecolor = 'magenta')
-		plt.bar(r3, y3, width = barWidth, color = ['#999933' for i in y3], label = 'station 3', yerr = conf3, ecolor = 'magenta')
-		plt.bar(r4, y4, width = barWidth, color = ['#CC6677' for i in y4], label = 'station 4', yerr = conf4, ecolor = 'magenta')
-		plt.bar(r5, y4, width = barWidth, color = ['#AA4499' for i in y5], label = 'station 5', yerr = conf5, ecolor = 'magenta')
+		plt.bar(r1, y1, width = barWidth, color = ['#332288' for i in y1], label = 'station 1')
+		plt.bar(r2, y2, width = barWidth, color = ['#44AA99' for i in y2], label = 'station 2')
+		plt.bar(r3, y3, width = barWidth, color = ['#999933' for i in y3], label = 'station 3')
+		plt.bar(r4, y4, width = barWidth, color = ['#CC6677' for i in y4], label = 'station 4')
+		plt.bar(r5, y4, width = barWidth, color = ['#AA4499' for i in y5], label = 'station 5')
 		plt.xticks([r + barWidth*4 / 2 for r in range(len(y1))], [r for r in range(len(y1))])
 		plt.ylabel("Pourcentage du temps qu'une station est vide sur 150 heures")
 		plt.xlabel("Durée du processus (en heures)")
