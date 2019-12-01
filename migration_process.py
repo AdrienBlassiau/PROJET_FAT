@@ -470,7 +470,7 @@ class MigrationProcess:
 		r4 = [x + barWidth*3 for x in r1]
 		r5 = [x + barWidth*4 for x in r1]
 
-		plt.figure(figsize=(20,5))
+		plt.figure(figsize=(30,5))
 		plt.bar(r1, y1, width = barWidth, color = ['#332288' for i in y1], label = 'station 1')
 		plt.bar(r2, y2, width = barWidth, color = ['#44AA99' for i in y2], label = 'station 2')
 		plt.bar(r3, y3, width = barWidth, color = ['#999933' for i in y3], label = 'station 3')
