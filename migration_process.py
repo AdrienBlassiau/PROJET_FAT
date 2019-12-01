@@ -378,7 +378,7 @@ class MigrationProcess:
 
 	def coeff_replace(self, j):
 		"""
-			This function computes some coefficient to add to our theorical
+			This function computes some coefficient to add to our theoretical
 			model.
 		"""
 
@@ -394,9 +394,9 @@ class MigrationProcess:
 		return c
 
 
-	def compute_theorical_proba_emptiness(self):
+	def compute_theoretical_proba_emptiness(self):
 		"""
-			This function computes the theorical probability of emptiness.
+			This function computes the theoretical probability of emptiness.
 		"""
 
 		size = self.number_of_stations
@@ -527,6 +527,6 @@ class MigrationProcess:
 		plt.bar(r4, y4, width = barWidth, color = ['#CC6677' for i in y4], label = 'station 4')
 		plt.bar(r5, y4, width = barWidth, color = ['#AA4499' for i in y5], label = 'station 5')
 		plt.xticks([r + barWidth*4 / 2 for r in range(len(y1))], [r for r in range(len(y1))])
-		plt.ylabel("Pourcentage du temps qu'une station est vide sur 150 heures")
+		plt.ylabel("Écart à la probabilité stationnaire")
 		plt.xlabel("Durée du processus (en heures)")
 		plt.legend()
